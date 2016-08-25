@@ -11,6 +11,7 @@ import net.ivango.chat.common.responses.User;
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousSocketChannel;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -37,17 +38,11 @@ public class EventProcessor {
         handlerMap.put(GetUsersRequest.class, new MessageHandler<GetUsersRequest>() {
             @Override
             public void onMessageReceived(GetUsersRequest getUsersRequest, String senderAddress) {
-                List<User> users = new ArrayList<>();
-
-                addressToSessionMap.keySet().stream().filter(address -> !address.equals(senderAddress)).forEach(address -> {
-                    ClientSession session = addressToSessionMap.get(address);
-                    users.add(
-                            new User(session.getUserName(), address, 0)
-                    );
-                });
-
-                AsynchronousSocketChannel clientChannel = addressToSessionMap.get(senderAddress).getChannel();
-                sendJson(clientChannel, new GetUsersResponse(users));
+                GetUsersResponse getUsersResponse = getUsers(senderAddress);
+                if ( !getUsersResponse.getUsers().isEmpty() ) {
+                    AsynchronousSocketChannel clientChannel = addressToSessionMap.get(senderAddress).getChannel();
+                    sendJson(clientChannel, getUsersResponse);
+                }
             }
         });
 
@@ -64,9 +59,24 @@ public class EventProcessor {
             @Override
             public void onMessageReceived(SendMessageRequest sendMessageRequest, String address) {
                 System.out.format("Received message: %s.\n", sendMessageRequest.getMessage());
-                broadcastMessage("", sendMessageRequest.getMessage());
+                broadcastMessage("", new IncomingMessage("", sendMessageRequest.getMessage(), true));
             }
         });
+    }
+
+    private GetUsersResponse getUsers(String senderAddress){
+        List<User> users = new ArrayList<>();
+
+        addressToSessionMap.keySet().stream().filter(k -> !k.equals(senderAddress)).forEach(address -> {
+            ClientSession session = addressToSessionMap.get(address);
+            if (session.getUserName() != null) {
+                users.add(
+                        new User(session.getUserName(), address)
+                );
+            }
+        });
+        GetUsersResponse getUsersResponse = new GetUsersResponse(users);
+        return getUsersResponse;
     }
 
     public void onConnected(String address, AsynchronousSocketChannel channel) {
@@ -82,7 +92,7 @@ public class EventProcessor {
         handler.onMessageReceived(message, senderAddress);
     }
 
-    private void broadcastMessage(String sender, String messageText) {
+    private void broadcastMessage(String sender, Message message) {
         addressToSessionMap.keySet().stream().filter(receiver -> !receiver.equals(sender)).forEach(receiver -> {
 
             AsynchronousSocketChannel channel = addressToSessionMap.get(receiver).getChannel();
@@ -90,7 +100,6 @@ public class EventProcessor {
             if (channel != null && channel.isOpen()) {
                 System.out.format("Sending message from %s to %s...\n", sender, receiver);
 
-                IncomingMessage message = new IncomingMessage("", messageText, true);
                 sendJson(channel, message);
             }
         });
