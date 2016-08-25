@@ -1,4 +1,7 @@
-package chat.server;
+package net.ivango.chat.server;
+
+import net.ivango.chat.common.JSONMapper;
+import net.ivango.chat.common.requests.Message;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -9,6 +12,7 @@ public class ReadCompletionHandler implements CompletionHandler<Integer, Void> {
     private AsynchronousSocketChannel socketChannel;
     private ByteBuffer inputBuffer;
     private EventProcessor eventProcessor;
+    private JSONMapper jsonMapper = new JSONMapper();
 
     public ReadCompletionHandler(AsynchronousSocketChannel socketChannel,
                                  ByteBuffer inputBuffer,
@@ -34,16 +38,23 @@ public class ReadCompletionHandler implements CompletionHandler<Integer, Void> {
         // Rewind the input buffer to read from the beginning
 
         inputBuffer.get(buffer);
-        String message = new String(buffer);
-
+        String json = new String(buffer);
         try {
-            System.out.format("Received message from client %s : %s.\n", socketChannel.getRemoteAddress().toString(),
-                    message);
-
-            eventProcessor.broadcastMessage(socketChannel.getRemoteAddress().toString(), "message");
-        } catch (IOException e) {
+            Message message = (Message) jsonMapper.fromJson(json);
+            eventProcessor.onMessageReceived(message);
+        } catch (ClassNotFoundException e) {
             e.printStackTrace();
         }
+
+//
+//        try {
+////            System.out.format("Received message from client %s : %s.\n", socketChannel.getRemoteAddress().toString(),
+////                    message);
+//
+////            eventProcessor.broadcastMessage(socketChannel.getRemoteAddress().toString(), "message");
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
 
         /* attach read listener to this connection to listen for the upcoming messages */
         inputBuffer.clear();

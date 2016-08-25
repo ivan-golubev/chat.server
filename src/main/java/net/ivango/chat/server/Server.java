@@ -1,4 +1,4 @@
-package chat.server;
+package net.ivango.chat.server;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
