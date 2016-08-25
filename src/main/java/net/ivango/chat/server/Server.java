@@ -11,11 +11,13 @@ import java.util.concurrent.Executors;
 
 public class Server {
 
+    private String address;
     private int port;
     private AsynchronousServerSocketChannel server;
     private EventProcessor eventProcessor = new EventProcessor();
 
-    public Server(int port) {
+    public Server(String address, int port) {
+        this.address = address;
         this.port = port;
     }
 
@@ -24,7 +26,8 @@ public class Server {
          * completion-handlers. */
         AsynchronousChannelGroup channelGroup = AsynchronousChannelGroup.withFixedThreadPool(4, Executors.defaultThreadFactory());
         server = AsynchronousServerSocketChannel.open( channelGroup );
-        server.bind(new InetSocketAddress("localhost", port));
+        server.bind(new InetSocketAddress(address, port));
+        System.out.format("Server started listening at %s ...\n", address + ":" + port);
         /* proactive initiation */
         server.accept(null, connectionAcceptHandler);
     }

@@ -37,7 +37,7 @@ public class ReadCompletionHandler implements CompletionHandler<Integer, Void> {
 
             inputBuffer.get(buffer);
             String json = new String(buffer);
-            System.out.println("Parsing the message: " + json);
+//            System.out.println("Parsing the message: " + json);
             try {
                 Message message = (Message) jsonMapper.fromJson(json);
                 eventProcessor.onMessageReceived(message, senderAddress);

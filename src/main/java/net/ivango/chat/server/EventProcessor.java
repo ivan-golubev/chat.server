@@ -35,32 +35,28 @@ public class EventProcessor {
             }
         });
 
-        handlerMap.put(GetUsersRequest.class, new MessageHandler<GetUsersRequest>() {
-            @Override
-            public void onMessageReceived(GetUsersRequest getUsersRequest, String senderAddress) {
-                GetUsersResponse getUsersResponse = getUsers(senderAddress);
-                if ( !getUsersResponse.getUsers().isEmpty() ) {
-                    AsynchronousSocketChannel clientChannel = addressToSessionMap.get(senderAddress).getChannel();
-                    sendJson(clientChannel, getUsersResponse);
-                }
+        handlerMap.put(GetUsersRequest.class, (getUsersRequest, senderAddress) -> {
+            GetUsersResponse getUsersResponse = getUsers(senderAddress);
+            if ( !getUsersResponse.getUsers().isEmpty() ) {
+                AsynchronousSocketChannel clientChannel = addressToSessionMap.get(senderAddress).getChannel();
+                sendJson(clientChannel, getUsersResponse);
             }
         });
 
-        handlerMap.put(LoginRequest.class, new MessageHandler<LoginRequest>() {
-            @Override
-            public void onMessageReceived(LoginRequest loginRequest, String address) {
-                System.out.format("login request from: %s.\n", loginRequest.getUserName());
-                ClientSession session = addressToSessionMap.get(address);
-                session.setUserName(loginRequest.getUserName());
-            }
+        handlerMap.put(LoginRequest.class, (loginRequest, address) -> {
+            System.out.format("login request from: %s.\n", loginRequest.getUserName());
+            ClientSession session = addressToSessionMap.get(address);
+            session.setUserName(loginRequest.getUserName());
         });
 
-        handlerMap.put(SendMessageRequest.class, new MessageHandler<SendMessageRequest>() {
-            @Override
-            public void onMessageReceived(SendMessageRequest sendMessageRequest, String address) {
-                System.out.format("Received message: %s.\n", sendMessageRequest.getMessage());
-//                broadcastMessage("", new IncomingMessage("", sendMessageRequest.getMessage(), true));
-                sendMessage(address, sendMessageRequest.getReceiver(), sendMessageRequest.getMessage());
+        handlerMap.put(SendMessageRequest.class, (sendMessageRequest, senderAddress) -> {
+            String senderName = addressToSessionMap.get(senderAddress).getUserName();
+            if ( sendMessageRequest.isBroadcast() ) {
+                addressToSessionMap.keySet().stream().filter(receiver -> !receiver.equals(senderAddress)).forEach(
+                        receiver -> sendMessage(senderAddress, senderName, receiver, sendMessageRequest.getMessage(), true)
+                );
+            } else { /* direct message */
+                sendMessage(senderAddress, senderName, sendMessageRequest.getReceiver(), sendMessageRequest.getMessage(), false);
             }
         });
     }
@@ -93,30 +89,16 @@ public class EventProcessor {
         handler.onMessageReceived(message, senderAddress);
     }
 
-    private void broadcastMessage(String sender, Message message) {
-        addressToSessionMap.keySet().stream().filter(receiver -> !receiver.equals(sender)).forEach(receiver -> {
-
-            AsynchronousSocketChannel channel = addressToSessionMap.get(receiver).getChannel();
-
-            if (channel != null && channel.isOpen()) {
-                System.out.format("Sending message from %s to %s...\n", sender, receiver);
-
-                sendJson(channel, message);
-            }
-        });
-    }
-
     private void sendJson(AsynchronousSocketChannel channel, Message message) {
         ByteBuffer outputBuffer = ByteBuffer.wrap(jsonMapper.toJSON(message).getBytes());
         channel.write(outputBuffer);
     }
 
-    private void sendMessage(String senderAddress, String receiver, String message) {
+    private void sendMessage(String senderAddress, String senderName, String receiver, String message, boolean broadcast) {
         AsynchronousSocketChannel channel = addressToSessionMap.get(receiver).getChannel();
         if (channel != null && channel.isOpen()) {
             // Sending message to the client
-            String senderName = addressToSessionMap.get(senderAddress).getUserName();
-            sendJson(channel, new IncomingMessage(senderAddress, senderName, message, false));
+            sendJson(channel, new IncomingMessage(senderAddress, senderName, message, broadcast));
         }
     }
 }

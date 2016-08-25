@@ -7,7 +7,7 @@ public class StartServer {
     public static final int PORT = 8989;
 
     public static void main(String[] args)  {
-        Server server = new Server(PORT);
+        Server server = new Server("localhost", PORT);
 
         try {
             server.init();
