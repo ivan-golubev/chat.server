@@ -23,26 +23,29 @@ public class ReadCompletionHandler implements CompletionHandler<Integer, Void> {
     }
 
     public void completed(Integer bytesRead, Void sessionState) {
-        if (bytesRead == -1) {
-            System.out.println("EOS received. net.ivango.chat.client.Client disconnected.");
+        try {
+            String senderAddress = socketChannel.getRemoteAddress().toString();
+                    if (bytesRead == -1) {
+                        System.out.format("EOS received. client %s disconnected.\n", senderAddress);
+                        eventProcessor.onDisconnected(senderAddress);
+                        return;
+                    }
+
+            byte[] buffer = new byte[bytesRead];
+            inputBuffer.rewind();
+            // Rewind the input buffer to read from the beginning
+
+            inputBuffer.get(buffer);
+            String json = new String(buffer);
+            System.out.println("Parsing the message: " + json);
             try {
-                eventProcessor.onDisconnected(socketChannel.getRemoteAddress().toString());
-            } catch (IOException e) {
+                Message message = (Message) jsonMapper.fromJson(json);
+                eventProcessor.onMessageReceived(message, senderAddress);
+            } catch (ClassNotFoundException e) {
                 e.printStackTrace();
             }
-            return;
-        }
 
-        byte[] buffer = new byte[bytesRead];
-        inputBuffer.rewind();
-        // Rewind the input buffer to read from the beginning
-
-        inputBuffer.get(buffer);
-        String json = new String(buffer);
-        try {
-            Message message = (Message) jsonMapper.fromJson(json);
-            eventProcessor.onMessageReceived(message);
-        } catch (ClassNotFoundException e) {
+        } catch (IOException e) {
             e.printStackTrace();
         }
 
