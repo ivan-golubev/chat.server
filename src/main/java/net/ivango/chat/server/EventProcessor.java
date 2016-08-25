@@ -59,7 +59,8 @@ public class EventProcessor {
             @Override
             public void onMessageReceived(SendMessageRequest sendMessageRequest, String address) {
                 System.out.format("Received message: %s.\n", sendMessageRequest.getMessage());
-                broadcastMessage("", new IncomingMessage("", sendMessageRequest.getMessage(), true));
+//                broadcastMessage("", new IncomingMessage("", sendMessageRequest.getMessage(), true));
+                sendMessage(address, sendMessageRequest.getReceiver(), sendMessageRequest.getMessage());
             }
         });
     }
@@ -110,10 +111,12 @@ public class EventProcessor {
         channel.write(outputBuffer);
     }
 
-    private void sendMessage(String sender, String receiver, String message) {
+    private void sendMessage(String senderAddress, String receiver, String message) {
         AsynchronousSocketChannel channel = addressToSessionMap.get(receiver).getChannel();
         if (channel != null && channel.isOpen()) {
             // Sending message to the client
+            String senderName = addressToSessionMap.get(senderAddress).getUserName();
+            sendJson(channel, new IncomingMessage(senderAddress, senderName, message, false));
         }
     }
 }
