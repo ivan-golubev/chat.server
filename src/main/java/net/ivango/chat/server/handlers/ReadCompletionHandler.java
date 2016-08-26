@@ -4,6 +4,8 @@ import com.google.gson.JsonSyntaxException;
 import net.ivango.chat.common.JSONMapper;
 import net.ivango.chat.common.requests.Message;
 import net.ivango.chat.server.EventProcessor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -18,6 +20,8 @@ public class ReadCompletionHandler implements CompletionHandler<Integer, Void> {
     private EventProcessor eventProcessor;
     private JSONMapper jsonMapper = new JSONMapper();
 
+    private static Logger logger = LoggerFactory.getLogger(ReadCompletionHandler.class);
+
     public ReadCompletionHandler(AsynchronousSocketChannel socketChannel,
                                  ByteBuffer inputBuffer,
                                  EventProcessor eventProcessor) {
@@ -30,7 +34,7 @@ public class ReadCompletionHandler implements CompletionHandler<Integer, Void> {
         try {
             String senderAddress = socketChannel.getRemoteAddress().toString();
                     if (bytesRead == -1) {
-                        System.out.format("EOS received. client %s disconnected.\n", senderAddress);
+                        logger.debug("EOS received. client disconnected: " + senderAddress);
                         eventProcessor.onDisconnected(senderAddress);
                         return;
                     }
@@ -48,37 +52,18 @@ public class ReadCompletionHandler implements CompletionHandler<Integer, Void> {
                     eventProcessor.onMessageReceived(message, senderAddress);
                 }
             } catch (ClassNotFoundException e) {
-                e.printStackTrace();
+                logger.error("Failed to map the json to message. Unknown data type.");
             } catch (JsonSyntaxException je) {
-                System.out.println("Failed to parse the message: " + json);
+                logger.error("Failed to parse the message: " + json);
             }
 
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error("Error during the input data parsing", e);
         }
-
-//
-//        try {
-////            System.out.format("Received message from client %s : %s.\n", socketChannel.getRemoteAddress().toString(),
-////                    message);
-//
-////            eventProcessor.broadcastMessage(socketChannel.getRemoteAddress().toString(), "message");
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
 
         /* attach read listener to this connection to listen for the upcoming messages */
         inputBuffer.clear();
         socketChannel.read(inputBuffer, null, this);
-
-//            // Echo the message back to client
-//            WriteCompletionHandler writeCompletionHandler =
-//                    new WriteCompletionHandler(socketChannel);
-//
-//            ByteBuffer outputBuffer = ByteBuffer.wrap(buffer);
-//
-//            socketChannel.write(
-//                    outputBuffer, sessionState, writeCompletionHandler);
     }
 
     /* client might send several successive messages concatenated */
@@ -106,6 +91,6 @@ public class ReadCompletionHandler implements CompletionHandler<Integer, Void> {
     }
 
     public void failed(Throwable exc, Void attachment) {
-        System.out.println("Failed to receive the input message");
+        logger.error("Failed to receive the input message");
     }
 }

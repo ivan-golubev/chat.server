@@ -4,12 +4,17 @@ import java.io.IOException;
 import java.net.SocketException;
 import java.nio.channels.UnresolvedAddressException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Main class used to:
  * 1. validate the input console arguments
  * 2. start the server
  * */
 public class StartServer {
+
+    private static Logger logger = LoggerFactory.getLogger(StartServer.class);
 
     public StartServer(String host, int port) {
         try {
@@ -21,21 +26,21 @@ public class StartServer {
                 Thread.sleep(Long.MAX_VALUE);
             }
         } catch (UnresolvedAddressException ua) {
-            System.err.println("Cannot resolve the specified address: " + host + ":" + port);
+            logger.error("Cannot resolve the specified address: " + host + ":" + port);
             System.exit(1);
         } catch (SocketException se) {
-            System.err.println("Specified port is in use already: " + host + ":" + port);
+            logger.error("Specified port is in use already: " + host + ":" + port);
             System.exit(1);
         } catch (InterruptedException | IOException e) {
-            e.printStackTrace();
+            logger.error("Other server error", e);
         } finally {
-            System.out.println("Terminating the server...");
+            logger.info("Terminating the server...");
         }
     }
 
     public static void main(String[] args) {
         if (args.length != 2) {
-            System.out.println("Usage: java -jar chat.server-*.jar <host> <port>");
+            logger.info("Usage: java -jar chat.server-*.jar <host> <port>");
         } else {
             try {
                 String host = args[0];
@@ -43,7 +48,7 @@ public class StartServer {
                 new StartServer(host, port);
 
             } catch(NumberFormatException ne) {
-                    System.err.println("Failed to parse the port...");
+                    logger.error("Failed to parse the port...");
                 }
             }
     }

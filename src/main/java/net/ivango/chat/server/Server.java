@@ -1,6 +1,8 @@
 package net.ivango.chat.server;
 
 import net.ivango.chat.server.handlers.ReadCompletionHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -25,6 +27,8 @@ public class Server {
     /** Processes all the incoming/ outgoing messages and other events */
     private EventProcessor eventProcessor = new EventProcessor();
 
+    private static Logger logger = LoggerFactory.getLogger(Server.class);
+
     public Server(String address, int port) {
         this.address = address;
         this.port = port;
@@ -40,7 +44,7 @@ public class Server {
         AsynchronousChannelGroup channelGroup = AsynchronousChannelGroup.withFixedThreadPool(4, Executors.defaultThreadFactory());
         server = AsynchronousServerSocketChannel.open( channelGroup );
         server.bind(new InetSocketAddress(address, port));
-        System.out.format("Server started listening at %s ...\n", address + ":" + port);
+        logger.info("Server started listening at: " + address + ":" + port);
         /* proactive initiation */
         server.accept(null, connectionAcceptHandler);
     }
@@ -56,7 +60,7 @@ public class Server {
             handle(channel);
         }
 
-        public void failed(Throwable exc, Void attachment) { System.out.println("Connection failed"); }
+        public void failed(Throwable exc, Void attachment) { logger.error("Failed to accept a connection", exc); }
     };
 
     /**
@@ -66,14 +70,14 @@ public class Server {
     private void handle(AsynchronousSocketChannel channel) {
         try {
             String address = channel.getRemoteAddress().toString();
-            System.out.format("Connection from %s established.\n", address);
+            logger.debug("Connection established from: " + address);
             /* save the connection */
             eventProcessor.onConnected(address, channel);
             /* attach read listener to this connection */
             ByteBuffer inputBuffer = ByteBuffer.allocate(2048);
             channel.read(inputBuffer, null, new ReadCompletionHandler(channel, inputBuffer, eventProcessor));
         } catch (IOException ie) {
-            ie.printStackTrace();
+            logger.error("Error occurred upon accepting a new connection:", ie);
         }
     }
 }

@@ -8,10 +8,15 @@ import net.ivango.chat.common.responses.GetTimeResponse;
 import net.ivango.chat.common.responses.GetUsersResponse;
 import net.ivango.chat.common.responses.IncomingMessage;
 import net.ivango.chat.common.responses.User;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousSocketChannel;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -25,6 +30,8 @@ public class EventProcessor {
     private HandlerMap handlerMap = new HandlerMap();
     /** maps messages to json and back */
     private JSONMapper jsonMapper = new JSONMapper();
+
+    private static Logger logger = LoggerFactory.getLogger(EventProcessor.class);
 
     public EventProcessor() {
         registerHandlers();
@@ -42,14 +49,23 @@ public class EventProcessor {
         handlerMap.put(GetUsersRequest.class, (getUsersRequest, senderAddress) -> {
             GetUsersResponse getUsersResponse = getUsers(senderAddress);
 
-            AsynchronousSocketChannel clientChannel = addressToSessionMap.get(senderAddress).getChannel();
-            sendJson(clientChannel, getUsersResponse);
+            try {
+                ClientSession session = addressToSessionMap.get(senderAddress);
+                if (session != null) {
+                    AsynchronousSocketChannel clientChannel = session.getChannel();
+                    sendJson(clientChannel, getUsersResponse);
+                }
+            } catch (Exception e) {
+                logger.error("An error occured during the GetUserRequest processing", e);
+            }
         });
 
         handlerMap.put(LoginRequest.class, (loginRequest, address) -> {
-            System.out.format("login request from: %s.\n", loginRequest.getUserName());
+            logger.debug("login request from: " + loginRequest.getUserName());
             ClientSession session = addressToSessionMap.get(address);
-            session.setUserName(loginRequest.getUserName());
+            if (session != null) {
+                session.setUserName(loginRequest.getUserName());
+            }
         });
 
         handlerMap.put(SendMessageRequest.class, (sendMessageRequest, senderAddress) -> {
@@ -72,7 +88,7 @@ public class EventProcessor {
 
         addressToSessionMap.keySet().stream().filter(k -> !k.equals(senderAddress)).forEach(address -> {
             ClientSession session = addressToSessionMap.get(address);
-            if (session.getUserName() != null) {
+            if (session != null && session.getUserName() != null) {
                 users.add(
                         new User(session.getUserName(), address)
                 );
@@ -110,8 +126,10 @@ public class EventProcessor {
      * Maps the message to JSON and sends it over the socket channel to the client.
      * */
     private void sendJson(AsynchronousSocketChannel channel, Message message) {
-        ByteBuffer outputBuffer = ByteBuffer.wrap(jsonMapper.toJSON(message).getBytes());
-        channel.write(outputBuffer);
+        if (channel != null && channel.isOpen()) {
+            ByteBuffer outputBuffer = ByteBuffer.wrap(jsonMapper.toJSON(message).getBytes());
+            channel.write(outputBuffer);
+        }
     }
 
     /**
@@ -119,10 +137,13 @@ public class EventProcessor {
      * @param broadcast - send to everyone if true
      * */
     private void sendMessage(String senderAddress, String senderName, String receiver, String message, boolean broadcast) {
-        AsynchronousSocketChannel channel = addressToSessionMap.get(receiver).getChannel();
-        if (channel != null && channel.isOpen()) {
-            // Sending message to the client
-            sendJson(channel, new IncomingMessage(senderAddress, senderName, message, broadcast));
+        ClientSession session = addressToSessionMap.get(receiver);
+        if (session != null) {
+            AsynchronousSocketChannel channel = session.getChannel();
+            if (channel != null && channel.isOpen()) {
+                // Sending message to the client
+                sendJson(channel, new IncomingMessage(senderAddress, senderName, message, broadcast));
+            }
         }
     }
 }
