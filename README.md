@@ -22,6 +22,7 @@ execute this in console (cd to the project root directory first) or in you favou
 To run the server:
 
 `> cd build\libs\`
+
 `> java -jar chat.server-*.jar <host> <port>`
 
 This will start the server at the specified address and port.
