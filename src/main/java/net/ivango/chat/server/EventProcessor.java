@@ -33,10 +33,9 @@ public class EventProcessor {
 
         handlerMap.put(GetUsersRequest.class, (getUsersRequest, senderAddress) -> {
             GetUsersResponse getUsersResponse = getUsers(senderAddress);
-            if ( !getUsersResponse.getUsers().isEmpty() ) {
-                AsynchronousSocketChannel clientChannel = addressToSessionMap.get(senderAddress).getChannel();
-                sendJson(clientChannel, getUsersResponse);
-            }
+
+            AsynchronousSocketChannel clientChannel = addressToSessionMap.get(senderAddress).getChannel();
+            sendJson(clientChannel, getUsersResponse);
         });
 
         handlerMap.put(LoginRequest.class, (loginRequest, address) -> {

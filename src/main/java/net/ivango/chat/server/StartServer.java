@@ -1,14 +1,12 @@
 package net.ivango.chat.server;
 
-import org.apache.commons.cli.*;
-
 import java.io.IOException;
 import java.net.SocketException;
 import java.nio.channels.UnresolvedAddressException;
 
 public class StartServer {
 
-    public StartServer(String host, int port) throws ParseException {
+    public StartServer(String host, int port) {
         try {
             Server server = new Server(host, port);
 
@@ -30,9 +28,9 @@ public class StartServer {
         }
     }
 
-    public static void main(String[] args) throws ParseException {
+    public static void main(String[] args) {
         if (args.length != 2) {
-            System.out.println("Usage: java -jar ChatServer.jar <host> <port>");
+            System.out.println("Usage: java -jar chat.server-*.jar <host> <port>");
         } else {
             try {
                 String host = args[0];
