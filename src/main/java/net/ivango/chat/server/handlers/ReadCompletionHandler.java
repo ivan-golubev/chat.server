@@ -1,8 +1,9 @@
-package net.ivango.chat.server;
+package net.ivango.chat.server.handlers;
 
 import com.google.gson.JsonSyntaxException;
 import net.ivango.chat.common.JSONMapper;
 import net.ivango.chat.common.requests.Message;
+import net.ivango.chat.server.EventProcessor;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;

@@ -3,6 +3,10 @@ package net.ivango.chat.server;
 
 import java.nio.channels.AsynchronousSocketChannel;
 
+/**
+ * Holds the client session info:
+ * user name and the socket channel.
+ * */
 public class ClientSession {
 
     private AsynchronousSocketChannel channel;

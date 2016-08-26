@@ -4,6 +4,11 @@ import java.io.IOException;
 import java.net.SocketException;
 import java.nio.channels.UnresolvedAddressException;
 
+/**
+ * Main class used to:
+ * 1. validate the input console arguments
+ * 2. start the server
+ * */
 public class StartServer {
 
     public StartServer(String host, int port) {
