@@ -4,16 +4,14 @@ import net.ivango.chat.common.JSONMapper;
 import net.ivango.chat.common.misc.HandlerMap;
 import net.ivango.chat.common.misc.MessageHandler;
 import net.ivango.chat.common.requests.*;
+import net.ivango.chat.common.responses.GetTimeResponse;
 import net.ivango.chat.common.responses.GetUsersResponse;
 import net.ivango.chat.common.responses.IncomingMessage;
 import net.ivango.chat.common.responses.User;
 
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousSocketChannel;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class EventProcessor {
@@ -28,11 +26,9 @@ public class EventProcessor {
     }
 
     private void registerHandlers(){
-        handlerMap.put(GetTimeRequest.class, new MessageHandler<GetTimeRequest>() {
-            @Override
-            public void onMessageReceived(GetTimeRequest getTimeResponse, String address) {
-                System.out.println("GetTimeRequest");
-            }
+        handlerMap.put(GetTimeRequest.class, (getTimeResponse, address) -> {
+            AsynchronousSocketChannel clientChannel = addressToSessionMap.get(address).getChannel();
+            sendJson(clientChannel, new GetTimeResponse(new Date().getTime()));
         });
 
         handlerMap.put(GetUsersRequest.class, (getUsersRequest, senderAddress) -> {
