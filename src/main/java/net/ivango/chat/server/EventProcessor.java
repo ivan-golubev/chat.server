@@ -8,6 +8,7 @@ import net.ivango.chat.common.responses.GetTimeResponse;
 import net.ivango.chat.common.responses.GetUsersResponse;
 import net.ivango.chat.common.responses.IncomingMessage;
 import net.ivango.chat.common.responses.User;
+import net.ivango.chat.server.handlers.ReadCompletionHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,22 +43,12 @@ public class EventProcessor {
      * */
     private void registerHandlers(){
         handlerMap.put(GetTimeRequest.class, (getTimeResponse, address) -> {
-            AsynchronousSocketChannel clientChannel = addressToSessionMap.get(address).getChannel();
-            sendJson(clientChannel, new GetTimeResponse(new Date().getTime()));
+            sendJson(addressToSessionMap.get(address), new GetTimeResponse(new Date().getTime()));
         });
 
         handlerMap.put(GetUsersRequest.class, (getUsersRequest, senderAddress) -> {
             GetUsersResponse getUsersResponse = getUsers(senderAddress);
-
-            try {
-                ClientSession session = addressToSessionMap.get(senderAddress);
-                if (session != null) {
-                    AsynchronousSocketChannel clientChannel = session.getChannel();
-                    sendJson(clientChannel, getUsersResponse);
-                }
-            } catch (Exception e) {
-                logger.error("An error occured during the GetUserRequest processing", e);
-            }
+            sendJson(addressToSessionMap.get(senderAddress), getUsersResponse);
         });
 
         handlerMap.put(LoginRequest.class, (loginRequest, address) -> {
@@ -103,6 +94,9 @@ public class EventProcessor {
      * */
     public void onConnected(String address, AsynchronousSocketChannel channel) {
         addressToSessionMap.put(address, new ClientSession(channel));
+        /* attach read listener to this connection */
+        ByteBuffer inputBuffer = ByteBuffer.allocate(2048);
+        channel.read(inputBuffer, null, new ReadCompletionHandler(channel, inputBuffer, this));
     }
 
     /**
@@ -125,10 +119,19 @@ public class EventProcessor {
     /**
      * Maps the message to JSON and sends it over the socket channel to the client.
      * */
-    private void sendJson(AsynchronousSocketChannel channel, Message message) {
-        if (channel != null && channel.isOpen()) {
-            ByteBuffer outputBuffer = ByteBuffer.wrap(jsonMapper.toJSON(message).getBytes());
-            channel.write(outputBuffer);
+    private void sendJson(ClientSession session, Message message) {
+        try {
+            if (session != null && session.getChannel() != null && session.getChannel().isOpen()) {
+                session.getLock().lock();
+                try{
+                    ByteBuffer outputBuffer = ByteBuffer.wrap(jsonMapper.toJSON(message).getBytes());
+                    session.getChannel().write(outputBuffer).get();
+                } finally {
+                    session.getLock().unlock();
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Error during the message sending: ", e);
         }
     }
 
@@ -139,11 +142,7 @@ public class EventProcessor {
     private void sendMessage(String senderAddress, String senderName, String receiver, String message, boolean broadcast) {
         ClientSession session = addressToSessionMap.get(receiver);
         if (session != null) {
-            AsynchronousSocketChannel channel = session.getChannel();
-            if (channel != null && channel.isOpen()) {
-                // Sending message to the client
-                sendJson(channel, new IncomingMessage(senderAddress, senderName, message, broadcast));
-            }
+            sendJson(session, new IncomingMessage(senderAddress, senderName, message, broadcast));
         }
     }
 }

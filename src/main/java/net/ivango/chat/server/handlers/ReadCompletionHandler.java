@@ -91,6 +91,6 @@ public class ReadCompletionHandler implements CompletionHandler<Integer, Void> {
     }
 
     public void failed(Throwable exc, Void attachment) {
-        logger.error("Failed to receive the input message");
+        logger.info("Failed to receive the input message");
     }
 }

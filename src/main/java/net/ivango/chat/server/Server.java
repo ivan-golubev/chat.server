@@ -1,12 +1,10 @@
 package net.ivango.chat.server;
 
-import net.ivango.chat.server.handlers.ReadCompletionHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousChannelGroup;
 import java.nio.channels.AsynchronousServerSocketChannel;
 import java.nio.channels.AsynchronousSocketChannel;
@@ -18,7 +16,7 @@ import java.util.concurrent.Executors;
  * Starts listening for the incoming client connections on the specified port.
  * Notifies the event listener if anything interesting happens.
  * */
-public class Server {
+public class Server implements AutoCloseable {
 
     private String address;
     private int port;
@@ -41,7 +39,9 @@ public class Server {
     public void init() throws IOException, InterruptedException {
         /* A thread pool to which tasks are submitted to handle I/O events and dispatch to
          * completion-handlers. */
-        AsynchronousChannelGroup channelGroup = AsynchronousChannelGroup.withFixedThreadPool(4, Executors.defaultThreadFactory());
+        AsynchronousChannelGroup channelGroup = AsynchronousChannelGroup.withFixedThreadPool(
+                Runtime.getRuntime().availableProcessors(), Executors.defaultThreadFactory()
+        );
         server = AsynchronousServerSocketChannel.open( channelGroup );
         server.bind(new InetSocketAddress(address, port));
         logger.info("Server started listening at: " + address + ":" + port);
@@ -73,11 +73,16 @@ public class Server {
             logger.debug("Connection established from: " + address);
             /* save the connection */
             eventProcessor.onConnected(address, channel);
-            /* attach read listener to this connection */
-            ByteBuffer inputBuffer = ByteBuffer.allocate(2048);
-            channel.read(inputBuffer, null, new ReadCompletionHandler(channel, inputBuffer, eventProcessor));
         } catch (IOException ie) {
             logger.error("Error occurred upon accepting a new connection:", ie);
+        }
+    }
+
+    @Override
+    public void close() throws Exception {
+        if (server != null && server.isOpen()) {
+            logger.info("Stopping the server...");
+            server.close();
         }
     }
 }
