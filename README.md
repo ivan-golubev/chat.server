@@ -33,6 +33,11 @@ For example you may use your network ip address:
 Once the server is up and running you may start to use the chat clients:
 use the specified address to connect to this server.
 
+Extending the system with new message types (commands)
+-----------------------------------------------------
+Go to the [chat.common][5] project for more details.
+
+
 To get a verbose output switch from INFO to DEBUG in src/main/resources/log4j.properties
 
 [1]: https://github.com/ivan-golubev/chat.server
